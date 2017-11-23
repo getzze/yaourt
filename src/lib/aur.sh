@@ -189,6 +189,7 @@ vote_package() {
 # give to user all info to build and install Unsupported package from AUR
 install_from_aur() {
 	local cwd
+	local trust=$AURTRUST
 	declare -a pkginfo=($(pkgquery -1Aif "%n %i %v %w %o %u %m %l %L" "$1"))
 	[[ "${pkginfo[1]#-}" ]] || return 1
 	in_array ${pkginfo[0]} "${AUR_INSTALLED_PKGS[@]}" && return 0
@@ -206,7 +207,7 @@ install_from_aur() {
 	echo -e "$CBLINK$CRED$(gettext '( Unsupported package: Potentially dangerous ! )')$C0"
 
 	# Build, install/export
-	package_loop ${pkginfo[0]} 0 || manage_error ${pkginfo[0]} ||
+	package_loop ${pkginfo[0]} $trust || manage_error ${pkginfo[0]} ||
 	  { cd "$cwd"; return 1; }
 	cd "$cwd"
 	rm -rf "$YAOURTTMPDIR/aur-${pkginfo[0]}"
