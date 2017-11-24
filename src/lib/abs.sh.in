@@ -69,7 +69,7 @@ install_from_abs() {
 #  - pkgs_repo=(packages to get directly from repo)
 #  - pkgs_src=(packages to upgrade from PKGBUILD)
 fetch_pkgs_repo_up_list() {
-	unset pkgs_repo_up_info pkgs_repo pkgs_src upgrade_needed
+	unset pkgs_repo_up_info pkgs_repo pkgs_src pkgs_ignore upgrade_needed
 	local packages pkgname repo
 
 	# Retrieve list of pending upgrades from repos
@@ -248,16 +248,7 @@ sysupgrade() {
 	fetch_pkgs_repo_up_list
 	((AURUPGRADE)) && fetch_pkgs_aur_up_list
 
-	# Upgrade packages from sources
-	if [[ $pkgs_src ]]; then
-		show_targets 'Source targets' "${pkgs_src[@]#*/}" || return 0
-		build_pkg "${pkgs_src[@]}"
-		local ret=$?
-		# Refresh update list because packages may have been customized
-		fetch_pkgs_repo_up_list
-	fi
-
-	((upgrade_needed)) || [[ $pkgs_aur ]] || return $ret
+	((upgrade_needed)) || [[ $pkgs_aur ]] || return 0
 
 	# Display update info
 	if ((DETAILUPGRADE)); then
@@ -269,7 +260,14 @@ sysupgrade() {
 	# Upgrade packages from repos
 	if ((upgrade_needed)); then
 		(( UPGRADES > 1 )) && local _arg="-uu" || local _arg="-u"
-		su_pacman -S "${PACMAN_S_ARG[@]}" $_arg "${pkg_up[@]}" || return $?
+        [[ $pkgs_src ]] && local _ignore="${pkgs_src[@]/#*\//'--ignore '}" || local _ignore=""
+		su_pacman -S "${PACMAN_S_ARG[@]}" $_arg "${pkg_up[@]}" $_ignore || return $?
+	fi
+
+	# Upgrade packages from sources
+	if [[ $pkgs_src ]]; then
+		show_targets 'Build targets' "${pkgs_src[@]#*/}" || return 0
+		build_pkg "${pkgs_src[@]}"
 	fi
 
 	# Upgrade AUR packages
